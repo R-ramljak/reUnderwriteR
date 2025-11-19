@@ -1,11 +1,13 @@
 Package: reUnderwriteR
-Title: What the Package Does (One Line, Title Case)
+Title: Reinsurance Underwriting Toolkit with CAS Portfolio, Treaty Simulation, API and Shiny Frontend
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+    person("Marco", "Ramljak", , "marcoramljak@googlemail.com", role = c("aut", "cre"))
+Description: A minimal prototype demonstrating a modern reinsurance underwriting workflow: 
+  loading and preparing a motor insurance portfolio based on CASdatasets, computing 
+portfolio KPIs, evaluating a simple quota share treaty structure.
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.0.0
+RoxygenNote: 7.3.3
