@@ -9,5 +9,19 @@ Description: A minimal prototype demonstrating a modern reinsurance underwriting
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
+Depends: R (>= 4.3.0)
+Imports:
+    dplyr,
+    tibble,
+    plumber,
+    jsonlite,
+    CASdatasets,
+    ellmer
+Suggests:
+    testthat (>= 3.1.0),
+    ggplot2,
+    shiny,
+    rmarkdown,
+    knitr
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
