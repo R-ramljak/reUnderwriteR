@@ -16,20 +16,30 @@ load_cas_portfolio <- function() {
     stop("Package 'dplyr' is required but not installed.")
   }
   
-  # Use explicit namespace to avoid NOTE in R CMD check
-  data("freMTPL2freq", envir = environment())
-  data("freMTPL2sev",  envir = environment())
+  # Create a temporary environment to load data into
+  data_env <- new.env(parent = emptyenv())
+  
+  # Use utils::data() to load datasets from CASdatasets into this environment
+  utils::data("freMTPL2freq", package = "CASdatasets", envir = data_env)
+  utils::data("freMTPL2sev",  package = "CASdatasets", envir = data_env)
+  
+  # Extract them from the temporary environment
+  freq <- data_env$freMTPL2freq
+  sev  <- data_env$freMTPL2sev
+  
+  # Safety checks
+  if (is.null(freq)) stop("Failed to load 'freMTPL2freq' from CASdatasets.")
+  if (is.null(sev))  stop("Failed to load 'freMTPL2sev' from CASdatasets.")
   
   # Aggregate claim amounts at policy level
-  claims_by_policy <- freMTPL2sev |> 
-    dplyr::group_by(IDpol) |>
+  claims_by_policy <- dplyr::group_by(sev, IDpol) |>
     dplyr::summarise(
       incurred_loss = sum(ClaimAmount, na.rm = TRUE),
       .groups = "drop"
     )
   
   # Select a simple set of risk features from the frequency dataset
-  portfolio_raw <- freMTPL2freq |>
+  portfolio_raw <- freq |>
     dplyr::select(
       policy_id   = IDpol,
       exposure    = Exposure,
