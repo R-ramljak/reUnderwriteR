@@ -1,12 +1,13 @@
 # Simple Shiny app for reUnderwriteR
-# - Loads CAS portfolio once at startup
-# - Shows basic portfolio metrics
-# - Lets the user choose a quota share percentage
-# - Displays quota share treaty summary
+# Includes:
+# - Portfolio filtering
+# - Portfolio summary
+# - Quota share treaty simulation
+# - Policy table view
 
 library(shiny)
-library(tidyverse)
 library(reUnderwriteR)
+library(dplyr)
 library(DT)
 
 # Load portfolio once at startup
@@ -25,12 +26,36 @@ ui <- fluidPage(
         max = 70,
         value = 30,
         step = 5,
-        post = " %"
+        post = "%"
       ),
       actionButton(
         inputId = "run_sim",
         label = "Run treaty simulation"
       ),
+      hr(),
+      
+      # ---- Portfolio filtering controls ----
+      h4("Portfolio Filters"),
+      
+      selectInput(
+        inputId = "area_filter",
+        label = "Area (risk region):",
+        choices = sort(unique(portfolio$area)),
+        multiple = TRUE,
+        selected = unique(portfolio$area)
+      ),
+      
+      sliderInput(
+        inputId = "age_filter",
+        label = "Driver age range:",
+        min = min(portfolio$driv_age, na.rm = TRUE),
+        max = max(portfolio$driv_age, na.rm = TRUE),
+        value = c(
+          min(portfolio$driv_age, na.rm = TRUE),
+          max(portfolio$driv_age, na.rm = TRUE)
+        )
+      ),
+      
       hr(),
       h4("Portfolio info"),
       verbatimTextOutput("portfolio_info")
@@ -55,20 +80,43 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  # Pre-compute overall portfolio summary
-  portfolio_summary <- summarise_portfolio(portfolio)
+  
+  # ---- Filter the portfolio based on UI inputs ----
+  filtered_portfolio <- reactive({
+    p <- portfolio
+    
+    # Filter area selection
+    if (!is.null(input$area_filter) && length(input$area_filter) > 0) {
+      p <- dplyr::filter(p, area %in% input$area_filter)
+    }
+    
+    # Filter driver age range
+    p <- dplyr::filter(
+      p,
+      driv_age >= input$age_filter[1],
+      driv_age <= input$age_filter[2]
+    )
+    
+    p
+  })
+  
+  # ---- Portfolio summary based on filtered portfolio ----
+  portfolio_summary <- reactive({
+    summarise_portfolio(filtered_portfolio())
+  })
   
   output$portfolio_info <- renderText({
+    ps <- portfolio_summary()
     paste0(
-      "Number of policies: ", nrow(portfolio), "\n",
-      "Total exposure: ", round(portfolio_summary$total_exposure, 2), "\n",
-      "Total incurred loss: ", round(portfolio_summary$total_incurred, 2), "\n",
-      "Implied loss ratio: ", round(portfolio_summary$loss_ratio, 3)
+      "Number of policies: ", nrow(filtered_portfolio()), "\n",
+      "Total exposure: ", round(ps$total_exposure, 2), "\n",
+      "Total incurred loss: ", round(ps$total_incurred, 2), "\n",
+      "Implied loss ratio: ", round(ps$loss_ratio, 3)
     )
   })
   
   output$portfolio_summary <- renderTable({
-    portfolio_summary |>
+    portfolio_summary() |>
       mutate(
         total_exposure = round(total_exposure, 2),
         total_incurred = round(total_incurred, 2),
@@ -76,10 +124,10 @@ server <- function(input, output, session) {
       )
   })
   
-  # Reactive value for treaty result
+  # ---- Quota share treaty result ----
   treaty_result <- eventReactive(input$run_sim, {
     share <- input$qs_share / 100
-    simulate_quota_share(portfolio, share = share) |>
+    simulate_quota_share(filtered_portfolio(), share = share) |>
       mutate(
         total_exposure   = round(total_exposure, 2),
         total_incurred   = round(total_incurred, 2),
@@ -93,7 +141,7 @@ server <- function(input, output, session) {
   
   output$treaty_result <- renderTable({
     tr <- treaty_result()
-    # Reorder columns for nicer display
+    
     tr[, c(
       "qs_share",
       "total_exposure", "total_incurred", "loss_ratio",
@@ -103,7 +151,7 @@ server <- function(input, output, session) {
   
   output$portfolio_table <- renderDT({
     datatable(
-      portfolio |> 
+      filtered_portfolio() |> 
         select(policy_id, exposure, incurred_loss, area, veh_age, driv_age),
       options = list(pageLength = 10)
     )
